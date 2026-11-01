@@ -1,0 +1,34 @@
+# Code Authors
+
+This file identifies the people responsible for the project and its workflow ownership areas.
+
+## Project maintainer
+
+| Name | GitHub | Scope |
+| --- | --- | --- |
+| Pedro Nieto | [@pedroo-nietoo](https://github.com/pedroo-nietoo) | Project direction, workflow design, releases, maintenance, and review of cross-cutting changes. |
+
+## Workflow ownership
+
+| Path | Owner | Responsibility |
+| --- | --- | --- |
+| `.github/workflows/reusable-deploy.yml` | Pedro Nieto | VPS deployment, artifact transfer, SSH configuration, PM2 process lifecycle, and rollback backups. |
+| `.github/workflows/reusable-publish-artifacts.yml` | Pedro Nieto | Node.js and Maven builds, deployment package layout, artifact naming, and retention. |
+| `.github/workflows/reusable-sonarqube-scan.yml` | Pedro Nieto | SonarCloud authentication, language-specific analysis, coverage inputs, and quality-gate reporting. |
+| `.github/workflows/workflow-sandbox-nodejs.yml` | Pedro Nieto | Node.js reference pipeline and composition of reusable jobs. |
+| `.github/workflows/workflow-sandbox-java.yml` | Pedro Nieto | Java reference pipeline and composition of reusable jobs. |
+
+## Contribution and review
+
+Contributors are welcome to propose improvements through pull requests. Changes to reusable workflow inputs, secrets, artifact formats, runner assumptions, or deployment behavior require maintainer review because they can affect external repositories.
+
+When changing a workflow:
+
+- explain the compatibility impact in the pull request;
+- update [`README.md`](README.md) when its public contract changes;
+- validate YAML syntax and the relevant workflow path;
+- keep credentials and other sensitive values out of source control.
+
+## Attribution
+
+Third-party GitHub Actions remain under their respective licenses and ownership. This project uses actions from the GitHub, SonarSource, and Appleboy ecosystems; their use does not imply ownership or endorsement by this project.

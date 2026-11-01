@@ -1,94 +1,94 @@
-name: Reusable Deploy
+name: Deploy Application
 
 on:
- workflow_call:
-  inputs:
-   language:
-    description: "Ambiente de execução (nodejs ou java)"
-    required: true
-    type: string
-   artifact_name:
-    required: true
-    type: string
-   source_path:
-    required: true
-    type: string
-   scp_strip_components:
-    required: false
-    type: number
-    default: 0
-   app_dir:
-    required: true
-    type: string
-   app_name:
-    required: true
-    type: string
-  secrets:
-   VPS_HOST:
-    required: true
-   VPS_USER:
-    required: true
-   VPS_SSH_KEY:
-    required: true
-   VPS_PORT:
-    required: false
+  workflow_call:
+    inputs:
+      language:
+        description: "Ambiente de execução (nodejs ou java)"
+        required: true
+        type: string
+      artifact_name:
+        required: true
+        type: string
+      source_path:
+        required: true
+        type: string
+      scp_strip_components:
+        required: false
+        type: number
+        default: 0
+      app_dir:
+        required: true
+        type: string
+      app_name:
+        required: true
+        type: string
+    secrets:
+      VPS_HOST:
+        required: true
+      VPS_USER:
+        required: true
+      VPS_SSH_KEY:
+        required: true
+      VPS_PORT:
+        required: false
 
 jobs:
- deploy:
-  name: Execute Deploy
-  runs-on: ubuntu-latest
-  steps:
-   - name: Download Deployment Artifact
-     uses: actions/download-artifact@v4
-     with:
-      name: ${{ inputs.artifact_name }}
-      path: ${{ inputs.language == 'java' && 'artifact/' || '' }}
+  deploy:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Deployment Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ inputs.language == 'java' && 'artifact/' || '' }}
 
-   - name: Transfer Artifact via SCP
-     uses: appleboy/scp-action@v0.1.7
-     with:
-      host: ${{ secrets.VPS_HOST }}
-      username: ${{ secrets.VPS_USER }}
-      key: ${{ secrets.VPS_SSH_KEY }}
-      port: ${{ secrets.VPS_PORT || 22 }}
-      source: ${{ inputs.source_path }}
-      target: "/tmp"
-      strip_components: ${{ inputs.scp_strip_components }}
+      - name: Transfer Artifact via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          source: ${{ inputs.source_path }}
+          target: "/tmp"
+          strip_components: ${{ inputs.scp_strip_components }}
 
-   - name: Execute Remote Deployment via SSH
-     uses: appleboy/ssh-action@v1.0.3
-     with:
-      host: ${{ secrets.VPS_HOST }}
-      username: ${{ secrets.VPS_USER }}
-      key: ${{ secrets.VPS_SSH_KEY }}
-      port: ${{ secrets.VPS_PORT || 22 }}
-      script: |
-       set -e
+      - name: Execute Remote Deployment via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
 
-       APP_DIR="${{ inputs.app_dir }}"
-       APP_NAME="${{ inputs.app_name }}"
-       BACKUP_DIR="/var/www/backups/${APP_NAME}_$(date +%Y%m%d_%H%M%S)"
+            APP_DIR="${{ inputs.app_dir }}"
+            APP_NAME="${{ inputs.app_name }}"
+            BACKUP_DIR="/var/www/backups/${APP_NAME}_$(date +%Y%m%d_%H%M%S)"
 
-       echo "Preparing directories..."
-       mkdir -p $APP_DIR
-       mkdir -p /var/www/backups
+            echo "Preparing directories..."
+            mkdir -p $APP_DIR
+            mkdir -p /var/www/backups
 
-       if [ "${{ inputs.language }}" == "nodejs" ]; then
-         if [ -d "$APP_DIR/dist" ]; then cp -r $APP_DIR $BACKUP_DIR; fi
-         tar -xzf /tmp/${{ inputs.source_path }} -C /tmp/
-         rsync -av --delete /tmp/dist/ $APP_DIR/dist/
-         rsync -av --delete /tmp/node_modules/ $APP_DIR/node_modules/
-         cp /tmp/package.json $APP_DIR/
-         rm -rf /tmp/${{ inputs.source_path }} /tmp/dist /tmp/node_modules /tmp/package.json /tmp/package-lock.json
-         export PATH="$HOME/.nvm/versions/node/v22.0.0/bin:$PATH"
-         pm2 restart $APP_NAME || pm2 start $APP_DIR/dist/main.js --name $APP_NAME
+            if [ "${{ inputs.language }}" == "nodejs" ]; then
+              if [ -d "$APP_DIR/dist" ]; then cp -r $APP_DIR $BACKUP_DIR; fi
+              tar -xzf /tmp/${{ inputs.source_path }} -C /tmp/
+              rsync -av --delete /tmp/dist/ $APP_DIR/dist/
+              rsync -av --delete /tmp/node_modules/ $APP_DIR/node_modules/
+              cp /tmp/package.json $APP_DIR/
+              rm -rf /tmp/${{ inputs.source_path }} /tmp/dist /tmp/node_modules /tmp/package.json /tmp/package-lock.json
+              export PATH="$HOME/.nvm/versions/node/v22.0.0/bin:$PATH"
+              pm2 restart $APP_NAME || pm2 start $APP_DIR/dist/main.js --name $APP_NAME
 
-       elif [ "${{ inputs.language }}" == "java" ]; then
-         JAR_FILE=$(ls /tmp/*.jar | head -n 1)
-         if [ -f "$APP_DIR/app.jar" ]; then mv $APP_DIR/app.jar $BACKUP_DIR.jar; fi
-         mv $JAR_FILE $APP_DIR/app.jar
-         pm2 restart $APP_NAME || pm2 start "java -jar $APP_DIR/app.jar" --name $APP_NAME
-         rm -f /tmp/*.jar
-       fi
+            elif [ "${{ inputs.language }}" == "java" ]; then
+              JAR_FILE=$(ls /tmp/*.jar | head -n 1)
+              if [ -f "$APP_DIR/app.jar" ]; then mv $APP_DIR/app.jar $BACKUP_DIR.jar; fi
+              mv $JAR_FILE $APP_DIR/app.jar
+              pm2 restart $APP_NAME || pm2 start "java -jar $APP_DIR/app.jar" --name $APP_NAME
+              rm -f /tmp/*.jar
+            fi
 
-       echo "Deployment completed successfully."
+            echo "Deployment completed successfully."

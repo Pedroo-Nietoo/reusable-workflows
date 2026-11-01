@@ -45,7 +45,7 @@ jobs:
         run: npm run test --if-present
 
   sonarqube_scan:
-    name: SonarQube Scan
+    name: Quality Gate
     needs: build_and_test
     if: github.event_name != 'workflow_dispatch' || inputs.enable_sonar_scan == true
     uses: pedroo-nietoo/reusable-workflows/.github/workflows/reusable-sonarqube-scan.yml@main
@@ -55,7 +55,7 @@ jobs:
     secrets: inherit
 
   publish:
-    name: Publish Artifacts
+    name: Release
     needs: [build_and_test, sonarqube_scan]
     if: |
       always() &&
@@ -68,7 +68,7 @@ jobs:
       artifact_name: "application-package"
 
   deploy:
-    name: Deploy to VPS
+    name: Delivery
     needs: [publish]
     if: |
       always() &&

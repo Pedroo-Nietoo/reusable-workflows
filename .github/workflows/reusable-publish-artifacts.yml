@@ -1,83 +1,81 @@
-name: Reusable Publish Artifacts
+name: Publish Artifacts
 
 on:
- workflow_call:
-  inputs:
-   language:
-    description: "Linguagem do projeto (nodejs ou java)"
-    required: true
-    type: string
-   node_version:
-    required: false
-    type: string
-    default: "22"
-   java_version:
-    required: false
-    type: string
-    default: "17"
-   artifact_name:
-    description: "Nome do artefato para upload"
-    required: true
-    type: string
+  workflow_call:
+    inputs:
+      language:
+        description: "Linguagem do projeto (nodejs ou java)"
+        required: true
+        type: string
+      node_version:
+        required: false
+        type: string
+        default: "22"
+      java_version:
+        required: false
+        type: string
+        default: "17"
+      artifact_name:
+        description: "Nome do artefato para upload"
+        required: true
+        type: string
 
 jobs:
- publish:
-  name: Publish Artifacts
-  runs-on: ubuntu-latest
-  steps:
-   - name: Checkout Repository
-     uses: actions/checkout@v4
+  publish:
+    name: Publish Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-   # --- Lógica Node.js ---
-   - name: Setup Node.js
-     if: inputs.language == 'nodejs'
-     uses: actions/setup-node@v4
-     with:
-      node-version: ${{ inputs.node_version }}
-      cache: "npm"
+      - name: Setup Node.js
+        if: inputs.language == 'nodejs'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: "npm"
 
-   - name: Install Dependencies (Node)
-     if: inputs.language == 'nodejs'
-     run: npm ci
+      - name: Install Dependencies (Node)
+        if: inputs.language == 'nodejs'
+        run: npm ci
 
-   - name: Build Application (Node)
-     if: inputs.language == 'nodejs'
-     run: npm run build
+      - name: Build Application (Node)
+        if: inputs.language == 'nodejs'
+        run: npm run build
 
-   - name: Prune Dev Dependencies (Node)
-     if: inputs.language == 'nodejs'
-     run: npm prune --omit=dev
+      - name: Prune Dev Dependencies (Node)
+        if: inputs.language == 'nodejs'
+        run: npm prune --omit=dev
 
-   - name: Create Deployment Package (Node)
-     if: inputs.language == 'nodejs'
-     run: |
-      tar -czf deployment-package.tar.gz dist/ node_modules/ package.json package-lock.json
+      - name: Create Deployment Package (Node)
+        if: inputs.language == 'nodejs'
+        run: |
+          tar -czf deployment-package.tar.gz dist/ node_modules/ package.json package-lock.json
 
-   - name: Upload Deployment Artifact (Node)
-     if: inputs.language == 'nodejs'
-     uses: actions/upload-artifact@v4
-     with:
-      name: ${{ inputs.artifact_name }}
-      path: deployment-package.tar.gz
-      retention-days: 1
+      - name: Upload Deployment Artifact (Node)
+        if: inputs.language == 'nodejs'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: deployment-package.tar.gz
+          retention-days: 1
 
-   # --- Lógica Java/Spring ---
-   - name: Setup Java
-     if: inputs.language == 'java'
-     uses: actions/setup-java@v4
-     with:
-      java-version: ${{ inputs.java_version }}
-      distribution: "temurin"
-      cache: "maven"
+      - name: Setup Java
+        if: inputs.language == 'java'
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ inputs.java_version }}
+          distribution: "temurin"
+          cache: "maven"
 
-   - name: Build Application Package (Java)
-     if: inputs.language == 'java'
-     run: mvn clean package -DskipTests
+      - name: Build Application Package (Java)
+        if: inputs.language == 'java'
+        run: mvn clean package -DskipTests
 
-   - name: Upload Deployment Artifact (Java)
-     if: inputs.language == 'java'
-     uses: actions/upload-artifact@v4
-     with:
-      name: ${{ inputs.artifact_name }}
-      path: target/*.jar
-      retention-days: 1
+      - name: Upload Deployment Artifact (Java)
+        if: inputs.language == 'java'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: target/*.jar
+          retention-days: 1

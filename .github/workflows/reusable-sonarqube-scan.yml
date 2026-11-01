@@ -1,97 +1,96 @@
-name: Reusable SonarQube Scan
+name: SonarQube Scan
 
 on:
- workflow_call:
-  inputs:
-   language:
-    description: "Linguagem do projeto (nodejs ou java)"
-    required: true
-    type: string
-   node_version:
-    required: false
-    type: string
-    default: "22"
-   java_version:
-    required: false
-    type: string
-    default: "17"
-  secrets:
-   SONAR_TOKEN:
-    required: true
+  workflow_call:
+    inputs:
+      language:
+        description: "Linguagem do projeto (nodejs ou java)"
+        required: true
+        type: string
+      node_version:
+        required: false
+        type: string
+        default: "22"
+      java_version:
+        required: false
+        type: string
+        default: "17"
+    secrets:
+      SONAR_TOKEN:
+        required: true
 
 jobs:
- sonar_scan:
-  name: SonarQube Scan
-  runs-on: ubuntu-latest
-  steps:
-   - name: Checkout Repository
-     uses: actions/checkout@v4
-     with:
-      fetch-depth: 0
+  sonar_scan:
+    name: SonarQube Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-   - name: Setup Node.js
-     if: inputs.language == 'nodejs'
-     uses: actions/setup-node@v4
-     with:
-      node-version: ${{ inputs.node_version }}
-      cache: "npm"
+      - name: Setup Node.js
+        if: inputs.language == 'nodejs'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: "npm"
 
-   - name: Install Dependencies & Run Coverage (Node)
-     if: inputs.language == 'nodejs'
-     run: |
-      npm ci
-      npm run test:cov --if-present
+      - name: Install Dependencies & Run Coverage (Node)
+        if: inputs.language == 'nodejs'
+        run: |
+          npm ci
+          npm run test:cov --if-present
 
-   - name: Execute SonarQube Scan (Node)
-     if: inputs.language == 'nodejs'
-     uses: sonarsource/sonarqube-scan-action@master
-     env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-     with:
-      args: >
-       -Dsonar.projectKey=${{ github.repository_owner }}_${{ github.event.repository.name }} 
-       -Dsonar.organization=pedroo-nietoo
-       -Dsonar.sources=src 
-       -Dsonar.tests=src
-       -Dsonar.test.inclusions=src/**/*.spec.ts
-       -Dsonar.exclusions=src/**/*.spec.ts,src/infra/database/migrations/**,src/**/*.swagger.ts,src/**/seed.ts
-       -Dsonar.coverage.exclusions=src/**/*.module.ts,src/**/*.config.ts,src/**/*.dto.ts,src/**/*.entity.ts,src/**/*.enum.ts,src/**/*.decorator.ts,src/**/*.mock.ts,src/**/main.ts
-       -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+      - name: Execute SonarQube Scan (Node)
+        if: inputs.language == 'nodejs'
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ github.repository_owner }}_${{ github.event.repository.name }}
+            -Dsonar.organization=pedroo-nietoo
+            -Dsonar.sources=src
+            -Dsonar.tests=src
+            -Dsonar.test.inclusions=src/**/*.spec.ts
+            -Dsonar.exclusions=src/**/*.spec.ts,src/infra/database/migrations/**,src/**/*.swagger.ts,src/**/seed.ts
+            -Dsonar.coverage.exclusions=src/**/*.module.ts,src/**/*.config.ts,src/**/*.dto.ts,src/**/*.entity.ts,src/**/*.enum.ts,src/**/*.decorator.ts,src/**/*.mock.ts,src/**/main.ts
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
 
-   - name: Check SonarQube Quality Gate (Node)
-     if: inputs.language == 'nodejs'
-     uses: sonarsource/sonarqube-quality-gate-action@master
-     timeout-minutes: 5
-     env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: Check SonarQube Quality Gate (Node)
+        if: inputs.language == 'nodejs'
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-   - name: Setup Java
-     if: inputs.language == 'java'
-     uses: actions/setup-java@v4
-     with:
-      java-version: ${{ inputs.java_version }}
-      distribution: "temurin"
-      cache: "maven"
+      - name: Setup Java
+        if: inputs.language == 'java'
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ inputs.java_version }}
+          distribution: "temurin"
+          cache: "maven"
 
-   - name: Execute SonarQube Scan (Java)
-     if: inputs.language == 'java'
-     env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-     run: >
-      mvn clean verify sonar:sonar
-      -Dsonar.projectKey=${{ github.repository_owner }}_${{ github.event.repository.name }}
-      -Dsonar.organization=pedroo-nietoo
-      -Dsonar.host.url=https://sonarcloud.io
+      - name: Execute SonarQube Scan (Java)
+        if: inputs.language == 'java'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >
+          mvn clean verify sonar:sonar
+          -Dsonar.projectKey=${{ github.repository_owner }}_${{ github.event.repository.name }}
+          -Dsonar.organization=pedroo-nietoo
+          -Dsonar.host.url=https://sonarcloud.io
 
-   # --- Resumos Globais ---
-   - name: SonarQube Summary (Success)
-     if: success()
-     run: |
-      echo "### SonarCloud Scan Approved" >> $GITHUB_STEP_SUMMARY
-      echo "The code passed the Quality Gate." >> $GITHUB_STEP_SUMMARY
+      - name: SonarQube Summary (Success)
+        if: success()
+        run: |
+          echo "### SonarCloud Scan Approved" >> $GITHUB_STEP_SUMMARY
+          echo "The code passed the Quality Gate." >> $GITHUB_STEP_SUMMARY
 
-   - name: SonarQube Summary (Failure)
-     if: failure()
-     run: |
-      echo "### SonarCloud Scan Rejected" >> $GITHUB_STEP_SUMMARY
-      echo "The Quality Gate failed. Review the report." >> $GITHUB_STEP_SUMMARY
+      - name: SonarQube Summary (Failure)
+        if: failure()
+        run: |
+          echo "### SonarCloud Scan Rejected" >> $GITHUB_STEP_SUMMARY
+          echo "The Quality Gate failed. Review the report." >> $GITHUB_STEP_SUMMARY
