@@ -25,7 +25,7 @@ Contributors are welcome to propose improvements through pull requests. Changes 
 When changing a workflow:
 
 - explain the compatibility impact in the pull request;
-- update [`README.md`](README.md) when its public contract changes;
+- update [`README.md`](../README.md) when its public contract changes;
 - validate YAML syntax and the relevant workflow path;
 - keep credentials and other sensitive values out of source control.
 
