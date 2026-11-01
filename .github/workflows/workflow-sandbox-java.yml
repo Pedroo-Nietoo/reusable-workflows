@@ -1,0 +1,77 @@
+name: Workflow Sandbox Java
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      enable_sonar_scan:
+        description: "Enable SonarQube scan"
+        required: false
+        type: boolean
+        default: false
+      enable_deploy_option:
+        description: "Enable deploy option"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build_and_test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: "maven"
+
+      - name: Execute Unit Tests
+        run: mvn clean test
+
+  sonarqube_scan:
+    name: SonarQube Scan
+    needs: build_and_test
+    if: github.event_name != 'workflow_dispatch' || inputs.enable_sonar_scan == true
+    uses: pedroo-nietoo/reusable-workflows/.github/workflows/reusable-sonarqube-scan.yml@main
+    with:
+      language: "java"
+      java_version: "17"
+    secrets: inherit
+
+  publish:
+    name: Publish Artifacts
+    needs: [build_and_test, sonarqube_scan]
+    if: |
+      always() &&
+      needs.build_and_test.result == 'success' &&
+      (needs.sonarqube_scan.result == 'success' || needs.sonarqube_scan.result == 'skipped')
+    uses: pedroo-nietoo/reusable-workflows/.github/workflows/reusable-publish.yml@main
+    with:
+      language: "java"
+      java_version: "17"
+      artifact_name: "spring-application-package"
+
+  deploy:
+    name: Deploy to VPS
+    needs: [publish]
+    if: |
+      always() &&
+      needs.publish.result == 'success' &&
+      (github.event_name != 'workflow_dispatch' || inputs.enable_deploy_option == true)
+    uses: pedroo-nietoo/reusable-workflows/.github/workflows/reusable-deploy.yml@main
+    with:
+      language: "java"
+      artifact_name: "spring-application-package"
+      source_path: "artifact/*.jar"
+      scp_strip_components: 1
+      app_dir: "/var/www/spring-api"
+      app_name: "spring-api"
+    secrets: inherit

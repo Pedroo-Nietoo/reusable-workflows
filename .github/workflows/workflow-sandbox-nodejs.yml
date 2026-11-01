@@ -1,0 +1,84 @@
+name: Workflow Sandbox Node.js
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      enable_sonar_scan:
+        description: "Enable SonarQube scan"
+        required: false
+        type: boolean
+        default: false
+      enable_deploy_option:
+        description: "Enable deploy option"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build_and_test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Execute Linting
+        run: npm run lint --if-present
+
+      - name: Build Application
+        run: npm run build
+
+      - name: Execute Unit Tests
+        run: npm run test --if-present
+
+  sonarqube_scan:
+    name: SonarQube Scan
+    needs: build_and_test
+    if: github.event_name != 'workflow_dispatch' || inputs.enable_sonar_scan == true
+    uses: pedroo-nietoo/reusable-workflows/.github/workflows/reusable-sonarqube-scan.yml@main
+    with:
+      language: "nodejs"
+      node_version: "22"
+    secrets: inherit
+
+  publish:
+    name: Publish Artifacts
+    needs: [build_and_test, sonarqube_scan]
+    if: |
+      always() &&
+      needs.build_and_test.result == 'success' &&
+      (needs.sonarqube_scan.result == 'success' || needs.sonarqube_scan.result == 'skipped')
+    uses: pedroo-nietoo/reusable-workflows/.github/workflows/reusable-publish.yml@main
+    with:
+      language: "nodejs"
+      node_version: "22"
+      artifact_name: "application-package"
+
+  deploy:
+    name: Deploy to VPS
+    needs: [publish]
+    if: |
+      always() &&
+      needs.publish.result == 'success' &&
+      (github.event_name != 'workflow_dispatch' || inputs.enable_deploy_option == true)
+    uses: pedroo-nietoo/reusable-workflows/.github/workflows/reusable-deploy.yml@main
+    with:
+      language: "nodejs"
+      artifact_name: "application-package"
+      source_path: "deployment-package.tar.gz"
+      app_dir: "/var/www/eventer-api"
+      app_name: "eventer-api"
+    secrets: inherit
