@@ -61,7 +61,7 @@ jobs:
       always() &&
       needs.build_and_test.result == 'success' &&
       (needs.sonarqube_scan.result == 'success' || needs.sonarqube_scan.result == 'skipped')
-    uses: pedroo-nietoo/reusable-workflows/.github/workflows/reusable-publish.yml@main
+    uses: pedroo-nietoo/reusable-workflows/.github/workflows/reusable-publish-artifacts.yml@main
     with:
       language: "nodejs"
       node_version: "22"
